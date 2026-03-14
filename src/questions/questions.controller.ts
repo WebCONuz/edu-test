@@ -8,6 +8,10 @@ import {
   Delete,
   UseGuards,
   Query,
+  UseInterceptors,
+  UploadedFile,
+  ParseFilePipe,
+  MaxFileSizeValidator,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -16,6 +20,7 @@ import {
   ApiParam,
   ApiBearerAuth,
   ApiQuery,
+  ApiConsumes,
 } from '@nestjs/swagger';
 import { QuestionsService } from './questions.service';
 import { CreateQuestionDto } from './dto/create-question.dto';
@@ -26,6 +31,8 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { UserRole } from '../common/types';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ImportQuestionsDto } from './dto/import-questions.dto';
 
 @ApiTags('Questions')
 @Controller('questions')
@@ -85,6 +92,19 @@ export class QuestionsController {
     return this.questionsService.findAll(subjectId);
   }
 
+  @Get('by-subject/:subjectId')
+  @ApiOperation({ summary: "Kategoriya bo'yicha savollarni olish" })
+  @ApiParam({ name: 'subjectId', description: 'Subject ID (uuid)' })
+  @ApiResponse({
+    status: 200,
+    description: "Savollar ro'yxati",
+    type: [QuestionEntity],
+  })
+  @ApiResponse({ status: 404, description: 'Kategoriya topilmadi' })
+  findBySubject(@Param('subjectId') subjectId: string) {
+    return this.questionsService.findBySubject(subjectId);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Bitta savolni olish (hammaga ochiq)' })
   @ApiParam({ name: 'id', description: 'Question ID (uuid)' })
@@ -114,6 +134,7 @@ export class QuestionsController {
     return this.questionsService.update(id, dto);
   }
 
+  // inactive question
   @Delete(':id')
   @UseGuards(AccessTokenGuard, RolesGuard)
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.TEACHER)
@@ -124,5 +145,52 @@ export class QuestionsController {
   @ApiResponse({ status: 404, description: 'Savol topilmadi' })
   toggleActive(@Param('id') id: string) {
     return this.questionsService.toggleActive(id);
+  }
+
+  // delete question
+  @Delete(':id/permanent')
+  @UseGuards(AccessTokenGuard, RolesGuard)
+  @Roles(UserRole.SUPER_ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "Savolni butunlay o'chirish (faqat super_admin)" })
+  @ApiParam({ name: 'id', description: 'Question ID (uuid)' })
+  @ApiResponse({ status: 200, description: "Savol o'chirildi" })
+  @ApiResponse({ status: 404, description: 'Savol topilmadi' })
+  removePermanent(@Param('id') id: string) {
+    return this.questionsService.remove(id);
+  }
+
+  // faydan o'qib test qo'shish
+  @Post('import')
+  @UseGuards(AccessTokenGuard, RolesGuard)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.TEACHER)
+  @ApiBearerAuth()
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
+    summary: 'Fayldan savollarni import qilish (.pdf, .docx, .txt)',
+  })
+  @ApiResponse({ status: 201, description: 'Savollar muvaffaqiyatli saqlandi' })
+  @ApiResponse({
+    status: 400,
+    description: "Fayl turi noto'g'ri yoki savollar topilmadi",
+  })
+  create2(
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 10 * 1024 * 1024 }), // 10MB
+        ],
+      }),
+    )
+    file: Express.Multer.File,
+    @Body() dto: ImportQuestionsDto,
+    @CurrentUser('id') currentUserId: string,
+  ) {
+    return this.questionsService.importFromFile(
+      file,
+      dto.subjectId,
+      currentUserId,
+    );
   }
 }
