@@ -6,15 +6,20 @@ Test yechish platformasining backend qismi. NestJS, PostgreSQL va Prisma ORM aso
 
 ## 🛠 Texnologiyalar
 
-| Texnologiya | Versiya | Maqsad             |
-| ----------- | ------- | ------------------ |
-| NestJS      | v10+    | Backend framework  |
-| PostgreSQL  | v15+    | Ma'lumotlar bazasi |
-| Prisma      | v6      | ORM                |
-| JWT         | —       | Autentifikatsiya   |
-| Nodemailer  | —       | Email yuborish     |
-| Swagger     | —       | API dokumentatsiya |
-| bcrypt      | —       | Parol shifrlash    |
+| Texnologiya                      | Maqsad                          |
+| -------------------------------- | ------------------------------- |
+| NestJS                           | Backend framework               |
+| PostgreSQL                       | Ma'lumotlar bazasi              |
+| Prisma v6                        | ORM                             |
+| JWT                              | Autentifikatsiya                |
+| Nodemailer                       | Email yuborish                  |
+| Swagger                          | API dokumentatsiya              |
+| bcrypt                           | Parol shifrlash                 |
+| pdf-parse                        | PDF dan matn + rasmlar ajratish |
+| mammoth                          | DOCX dan matn + rasmlar         |
+| adm-zip                          | DOCX XML dan formulalar (LaTeX) |
+| Gemini / Groq / OpenRouter       | AI fallback zanjiri             |
+| Supabase / ImageKit / Uploadcare | Storage fallback zanjiri        |
 
 ---
 
@@ -22,19 +27,20 @@ Test yechish platformasining backend qismi. NestJS, PostgreSQL va Prisma ORM aso
 
 ```
 src/
-├── auth/                  # Autentifikatsiya (login, register, token)
+├── auth/                  # Autentifikatsiya
 │   ├── dto/
 │   ├── strategies/        # JWT strategiyalari
 │   └── auth.service.ts
 ├── users/                 # Admin va Teacher CRUD
-│   ├── dto/
-│   ├── entities/
-│   └── users.service.ts
-├── subjects/              # Fanlar / Kategoriyalar CRUD
-├── questions/             # Savollar va javob variantlari CRUD
+├── subjects/              # Fanlar / Kategoriyalar
+├── questions/             # Savollar CRUD + fayl import
+│   └── prompts/           # AI promptlari
 ├── students/              # O'quvchilar
 ├── sessions/              # Test sessiyalari
-├── mail/                  # Email yuborish servisi
+├── ai/                    # AI fallback (Gemini → Groq → OpenRouter)
+├── storage/               # Storage fallback (Supabase → ImageKit → Uploadcare)
+├── file-parser/           # Fayl o'qish (PDF, DOCX, TXT)
+├── mail/                  # Email yuborish
 ├── prisma/                # Prisma service va seed
 └── common/
     ├── decorators/        # CurrentUser, Roles
@@ -48,18 +54,20 @@ prisma/
 
 ## 👥 Rollar va huquqlar
 
-| Amal                        | super_admin | admin | teacher |
-| --------------------------- | ----------- | ----- | ------- |
-| Admin yaratish              | ✅          | ❌    | ❌      |
-| Teacher yaratish (register) | —           | —     | O'zi    |
-| Foydalanuvchilar ro'yxati   | ✅          | ✅    | ❌      |
-| Fan yaratish / yangilash    | ✅          | ✅    | ✅      |
-| Fanni inactive qilish       | ✅          | ✅    | ❌      |
-| Savol yaratish / yangilash  | ✅          | ✅    | ✅      |
-| Savolni inactive qilish     | ✅          | ✅    | ✅      |
-| Studentlar ro'yxati         | ✅          | ✅    | ❌      |
-| Studentni bloklash          | ✅          | ✅    | ❌      |
-| Sessiyalar statistikasi     | ✅          | ✅    | ❌      |
+| Amal                       | super_admin | admin | teacher |
+| -------------------------- | ----------- | ----- | ------- |
+| Admin yaratish             | ✅          | ❌    | ❌      |
+| Teacher ro'yxatdan o'tish  | —           | —     | O'zi    |
+| Foydalanuvchilar ro'yxati  | ✅          | ✅    | ❌      |
+| Fan yaratish / yangilash   | ✅          | ✅    | ✅      |
+| Fanni inactive qilish      | ✅          | ✅    | ❌      |
+| Savol yaratish / yangilash | ✅          | ✅    | ✅      |
+| Fayldan savollar import    | ✅          | ✅    | ✅      |
+| Savolni inactive qilish    | ✅          | ✅    | ✅      |
+| Savolni butunlay o'chirish | ✅          | ❌    | ❌      |
+| Studentlar ro'yxati        | ✅          | ✅    | ❌      |
+| Studentni bloklash         | ✅          | ✅    | ❌      |
+| Sessiyalar statistikasi    | ✅          | ✅    | ❌      |
 
 ---
 
@@ -111,33 +119,47 @@ npm install
 ```dotenv
 PORT=3000
 
-POSTGRES_HOST=localhost
-POSTGRES_PORT=5432
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=your_password
-POSTGRES_DB=edu-test
-
+# PostgreSQL
 DATABASE_URL="postgresql://postgres:your_password@localhost:5432/edu-test?schema=public"
 
+# JWT
 ACCESS_TOKEN_KEY=your_access_token_secret
-ACCESS_TOKEN_TIME=1h
-
 REFRESH_TOKEN_KEY=your_refresh_token_secret
-REFRESH_TOKEN_TIME=1d
 REFRESH_COOKIE_TIME=86400000
 
+# Email
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USER=your_email@gmail.com
 SMTP_PASSWORD=your_smtp_password
+DOMEN=http://localhost:5432
 
-DOMEN=http://localhost:3000
+# AI Providers (fallback zanjiri)
+GEMINI_API_KEY=your_gemini_api_key
+GROQ_API_KEY=your_groq_api_key
+OPENROUTER_API_KEY=your_openrouter_api_key
+
+# Storage Providers (fallback zanjiri)
+SUPABASE_URL=https://xxxx.supabase.co
+SUPABASE_ANON_KEY=your_anon_key
+SUPABASE_BUCKET=images
+
+IMAGEKIT_PUBLIC_KEY=public_xxxx
+IMAGEKIT_PRIVATE_KEY=private_xxxx
+IMAGEKIT_URL_ENDPOINT=https://ik.imagekit.io/your_id
+
+UPLOADCARE_PUBLIC_KEY=your_public_key
+UPLOADCARE_SECRET_KEY=your_secret_key
+
+# Working environment
+NODE_ENV='development'
 ```
 
 ### 4. Migratsiya
 
 ```bash
 npx prisma migrate dev --name init
+npx prisma generate
 ```
 
 ### 5. Dasturni ishga tushirish
@@ -200,14 +222,17 @@ Swagger UI: [http://localhost:3000/api/docs](http://localhost:3000/api/docs)
 
 #### ❓ Questions
 
-| Method | URL                         | Himoya        | Tavsif              |
-| ------ | --------------------------- | ------------- | ------------------- |
-| POST   | `/questions`                | Barcha rollar | Savol yaratish      |
-| GET    | `/questions`                | Ochiq         | Barchasini olish    |
-| GET    | `/questions?subjectId=uuid` | Ochiq         | Fan bo'yicha filter |
-| GET    | `/questions/:id`            | Ochiq         | Bittasini olish     |
-| PATCH  | `/questions/:id`            | Barcha rollar | Yangilash           |
-| DELETE | `/questions/:id`            | Barcha rollar | Inactive qilish     |
+| Method | URL                                | Himoya        | Tavsif                             |
+| ------ | ---------------------------------- | ------------- | ---------------------------------- |
+| POST   | `/questions`                       | Barcha rollar | Savol yaratish                     |
+| POST   | `/questions/import`                | Barcha rollar | Fayldan import (.pdf, .docx, .txt) |
+| GET    | `/questions`                       | Ochiq         | Barchasini olish                   |
+| GET    | `/questions?subjectId=uuid`        | Ochiq         | Fan bo'yicha filter                |
+| GET    | `/questions/by-subject/:subjectId` | Ochiq         | Fan bo'yicha savollar              |
+| GET    | `/questions/:id`                   | Ochiq         | Bittasini olish                    |
+| PATCH  | `/questions/:id`                   | Barcha rollar | Yangilash                          |
+| DELETE | `/questions/:id`                   | Barcha rollar | Inactive qilish                    |
+| DELETE | `/questions/:id/permanent`         | super_admin   | Butunlay o'chirish                 |
 
 #### 🎓 Students
 
@@ -231,20 +256,62 @@ Swagger UI: [http://localhost:3000/api/docs](http://localhost:3000/api/docs)
 
 ---
 
+## 📂 Fayl import jarayoni
+
+```
+Fayl yuklandi (.pdf / .docx / .txt)
+        ↓
+DOCX → mammoth (matn + rasmlar) + AdmZip XML (formulalar → LaTeX)
+PDF  → pdf-parse (matn + rasmlar)
+TXT  → oddiy matn
+        ↓
+Rasmlar → Storage fallback (Supabase → ImageKit → Uploadcare)
+        ↓
+Matn + Formulalar + Rasm URLlar → AI fallback
+(Gemini → Groq → OpenRouter)
+        ↓
+AI → JSON (savollar, variantlar, to'g'ri javoblar)
+        ↓
+Duplicate tekshiruv (normalize qilib taqqoslash)
+        ↓
+Batch transaction → DB ga saqlash
+```
+
+---
+
 ## 🔄 Test yechish jarayoni
 
 ```
 1. POST /students/check-phone  →  telefon mavjudmi?
           ↓
-2. POST /students              →  student yaratish (yoki mavjudini qaytarish)
+2. POST /students              →  student yaratish
           ↓
-3. POST /sessions/start        →  sessiya ochish, random savollar olish
+3. POST /sessions/start        →  sessiya ochish, random savollar
           ↓
-4. Student savollarni yechadi  (frontend tomonida)
+4. Student savollarni yechadi  (frontend)
           ↓
-5. POST /sessions/:id/submit   →  javoblarni yuborish, natija olish
+5. POST /sessions/:id/submit   →  javoblar yuboriladi, natija qaytariladi
           ↓
-6. POST /students/my-results   →  barcha natijalarni ko'rish (ixtiyoriy)
+6. POST /students/my-results   →  barcha natijalar (ixtiyoriy)
+```
+
+---
+
+## ➕ Formulalar
+
+Matematik formulalar **LaTeX** formatida saqlanadi (`$\frac{3}{4}$`).
+Frontend da **KaTeX** kutibxonasi yordamida render qilinadi:
+
+```bash
+npm install react-katex katex
+```
+
+```tsx
+import { InlineMath } from 'react-katex';
+import 'katex/dist/katex.min.css';
+
+// $ ... $ formulalarni avtomatik render qiladi
+<MathText text="$\frac{3}{4}$ kg un kerak" />;
 ```
 
 ---
@@ -257,6 +324,7 @@ Swagger UI: [http://localhost:3000/api/docs](http://localhost:3000/api/docs)
 - Parolni tiklash tokeni **30 daqiqa** amal qiladi
 - Test savollari **to'g'ri javobsiz** yuboriladi
 - Bloklangan studentlar tizimdan foydalana olmaydi
+- Duplicate savollar normalize qilib aniqlanadi
 
 ---
 

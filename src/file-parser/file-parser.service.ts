@@ -76,7 +76,9 @@ export class FileParserService {
     await parser.destroy();
 
     return {
-      text: textResult.text,
+      text: textResult.text
+        .replace(/\s+/g, ' ') // ko'p bo'sh joylarni bittaga
+        .trim(),
       imageUrls,
       formulas: [],
     };
@@ -253,7 +255,18 @@ export class FileParserService {
       },
     );
 
-    // 4. Ildiz: \sqrt{x} yoki \sqrt[n]{x}
+    // 4. Ustki va pastki indeks birga: x_{n}^{m}
+    result = result.replace(
+      /<m:sSubSup>[\s\S]*?<m:e>([\s\S]*?)<\/m:e>[\s\S]*?<m:sub>([\s\S]*?)<\/m:sub>[\s\S]*?<m:sup>([\s\S]*?)<\/m:sup>[\s\S]*?<\/m:sSubSup>/g,
+      (_, base, sub, sup) => {
+        const b = this.extractMathText(base);
+        const s = this.extractMathText(sub);
+        const p = this.extractMathText(sup);
+        return `${b}_{${s}}^{${p}}`;
+      },
+    );
+
+    // 5. Ildiz: \sqrt{x} yoki \sqrt[n]{x}
     result = result.replace(
       /<m:rad>[\s\S]*?<m:deg>([\s\S]*?)<\/m:deg>[\s\S]*?<m:e>([\s\S]*?)<\/m:e>[\s\S]*?<\/m:rad>/g,
       (_, deg, base) => {
@@ -263,9 +276,20 @@ export class FileParserService {
       },
     );
 
-    // 5. Yig'indi: \sum_{i}^{n}
+    // 6. Integral: \int_{a}^{b}
     result = result.replace(
-      /<m:nary>[\s\S]*?<m:sub>([\s\S]*?)<\/m:sub>[\s\S]*?<m:sup>([\s\S]*?)<\/m:sup>[\s\S]*?<m:e>([\s\S]*?)<\/m:e>[\s\S]*?<\/m:nary>/g,
+      /<m:nary>[\s\S]*?<m:naryPr>[\s\S]*?<m:chr m:val="∫"[\s\S]*?<\/m:naryPr>[\s\S]*?<m:sub>([\s\S]*?)<\/m:sub>[\s\S]*?<m:sup>([\s\S]*?)<\/m:sup>[\s\S]*?<m:e>([\s\S]*?)<\/m:e>[\s\S]*?<\/m:nary>/g,
+      (_, sub, sup, expr) => {
+        const s = this.extractMathText(sub);
+        const p = this.extractMathText(sup);
+        const e = this.extractMathText(expr);
+        return s && p ? `\\int_{${s}}^{${p}}{${e}}` : `\\int{${e}}`;
+      },
+    );
+
+    // 7. Yig'indi: \sum_{i}^{n}
+    result = result.replace(
+      /<m:nary>[\s\S]*?<m:naryPr>[\s\S]*?<m:chr m:val="∑"[\s\S]*?<\/m:naryPr>[\s\S]*?<m:sub>([\s\S]*?)<\/m:sub>[\s\S]*?<m:sup>([\s\S]*?)<\/m:sup>[\s\S]*?<m:e>([\s\S]*?)<\/m:e>[\s\S]*?<\/m:nary>/g,
       (_, sub, sup, expr) => {
         const s = this.extractMathText(sub);
         const p = this.extractMathText(sup);
@@ -274,12 +298,72 @@ export class FileParserService {
       },
     );
 
-    // 6. Mutlaq qiymat: |x|
+    // 8. Ko'paytma: \prod_{i}^{n}
     result = result.replace(
-      /<m:d>[\s\S]*?<m:e>([\s\S]*?)<\/m:e>[\s\S]*?<\/m:d>/g,
+      /<m:nary>[\s\S]*?<m:naryPr>[\s\S]*?<m:chr m:val="∏"[\s\S]*?<\/m:naryPr>[\s\S]*?<m:sub>([\s\S]*?)<\/m:sub>[\s\S]*?<m:sup>([\s\S]*?)<\/m:sup>[\s\S]*?<m:e>([\s\S]*?)<\/m:e>[\s\S]*?<\/m:nary>/g,
+      (_, sub, sup, expr) => {
+        const s = this.extractMathText(sub);
+        const p = this.extractMathText(sup);
+        const e = this.extractMathText(expr);
+        return `\\prod_{${s}}^{${p}}{${e}}`;
+      },
+    );
+
+    // 9. Limit: \lim_{x \to a}
+    result = result.replace(
+      /<m:func>[\s\S]*?<m:fName>([\s\S]*?)<\/m:fName>[\s\S]*?<m:e>([\s\S]*?)<\/m:e>[\s\S]*?<\/m:func>/g,
+      (_, fname, expr) => {
+        const f = this.extractMathText(fname);
+        const e = this.extractMathText(expr);
+        if (f.includes('lim'))
+          return `\\lim_{${f.replace('lim', '').trim()}}{${e}}`;
+        return `\\${f}{${e}}`;
+      },
+    );
+
+    // 10. Hosila: f'(x) yoki \frac{d}{dx}
+    result = result.replace(
+      /<m:acc>[\s\S]*?<m:accPr>[\s\S]*?<m:chr m:val="′"[\s\S]*?<\/m:accPr>[\s\S]*?<m:e>([\s\S]*?)<\/m:e>[\s\S]*?<\/m:acc>/g,
+      (_, expr) => {
+        const e = this.extractMathText(expr);
+        return `${e}'`;
+      },
+    );
+
+    // 11. Mutlaq qiymat: |x|
+    result = result.replace(
+      /<m:d>[\s\S]*?<m:dPr>[\s\S]*?<m:begChr m:val="\|"[\s\S]*?<\/m:dPr>[\s\S]*?<m:e>([\s\S]*?)<\/m:e>[\s\S]*?<\/m:d>/g,
       (_, inner) => {
         const i = this.extractMathText(inner);
         return `|${i}|`;
+      },
+    );
+
+    // 12. Matritsa: \begin{pmatrix}...\end{pmatrix}
+    result = result.replace(/<m:m>([\s\S]*?)<\/m:m>/g, (_, inner) => {
+      const rows: string[] = [];
+      const rowRegex = /<m:mr>([\s\S]*?)<\/m:mr>/g;
+      let rowMatch;
+      while ((rowMatch = rowRegex.exec(inner)) !== null) {
+        const cells: string[] = [];
+        const cellRegex = /<m:e>([\s\S]*?)<\/m:e>/g;
+        let cellMatch;
+        while ((cellMatch = cellRegex.exec(rowMatch[1])) !== null) {
+          cells.push(this.extractMathText(cellMatch[1]));
+        }
+        rows.push(cells.join(' & '));
+      }
+      return `\\begin{pmatrix}${rows.join(' \\\\ ')}\\end{pmatrix}`;
+    });
+
+    // 13. Umumiy nary (qolgan: lim, min, max va boshqalar)
+    result = result.replace(
+      /<m:nary>[\s\S]*?<m:sub>([\s\S]*?)<\/m:sub>[\s\S]*?<m:sup>([\s\S]*?)<\/m:sup>[\s\S]*?<m:e>([\s\S]*?)<\/m:e>[\s\S]*?<\/m:nary>/g,
+      (_, sub, sup, expr) => {
+        const s = this.extractMathText(sub);
+        const p = this.extractMathText(sup);
+        const e = this.extractMathText(expr);
+        return s && p ? `_{${s}}^{${p}}{${e}}` : `{${e}}`;
       },
     );
 
@@ -289,7 +373,6 @@ export class FileParserService {
       .replace(/\s+/g, ' ')
       .trim();
 
-    // $ ... $ bilan o'rash
     return text ? `$${text}$` : '';
   }
 

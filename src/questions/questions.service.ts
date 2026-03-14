@@ -370,6 +370,16 @@ export class QuestionsService {
   }
 
   private normalizeText(text: string): string {
-    return text.toLowerCase().replace(/\s+/g, ' ').trim();
+    return (
+      text
+        .toLowerCase()
+        // LaTeX formulalarni oddiy matnga o'girish
+        .replace(/\$\\frac\{(\d+)\}\{(\d+)\}\$/g, '$1/$2') // $\frac{1}{2}$ → 1/2
+        .replace(/\$\\sqrt\[([^\]]+)\]\{([^}]+)\}\$/g, '$1√$2') // $\sqrt[3]{x}$ → 3√x
+        .replace(/\$\\sqrt\{([^}]+)\}\$/g, '√$1') // $\sqrt{x}$ → √x
+        .replace(/\$[^$]+\$/g, '') // qolgan formulalarni olib tashlash
+        .replace(/\s+/g, ' ')
+        .trim()
+    );
   }
 }
