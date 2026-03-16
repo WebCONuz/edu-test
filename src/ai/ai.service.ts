@@ -23,38 +23,57 @@ export class AiService {
     buffer?: Buffer,
     mimeType?: string,
   ): Promise<string> {
-    if (buffer && mimeType) {
-      const providers = [
-        () => this.callGeminiMultimodal(prompt, buffer, mimeType),
-        () => this.callGroq(prompt),
-        () => this.callOpenRouter(prompt),
-      ];
-      for (const provider of providers) {
-        try {
-          return await provider();
-        } catch (error) {
-          console.warn(`AI provider failed: ${error.message}, trying next...`);
-        }
-      }
-    }
-
-    const providers = [
-      () => this.callGemini(prompt),
-      () => this.callGroq(prompt),
-      () => this.callOpenRouter(prompt),
-    ];
+    const providers =
+      buffer && mimeType
+        ? [
+            () => this.callGeminiMultimodal(prompt, buffer, mimeType),
+            () => this.callGroq(prompt),
+            () => this.callOpenRouter(prompt),
+          ]
+        : [
+            () => this.callGemini(prompt),
+            () => this.callGroq(prompt),
+            () => this.callOpenRouter(prompt),
+          ];
 
     for (const provider of providers) {
-      try {
-        return await provider();
-      } catch (error) {
-        console.warn(`AI provider failed: ${error.message}, trying next...`);
-      }
+      const result = await this.tryWithRetry(provider);
+      if (result !== null) return result;
     }
 
     throw new ServiceUnavailableException(
       "AI xizmati hozirda mavjud emas, keyinroq urinib ko'ring",
     );
+  }
+
+  // Retry mexanizmi
+  private async tryWithRetry(
+    fn: () => Promise<string>,
+    maxRetries = 3,
+    delayMs = 2000,
+  ): Promise<string | null> {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        return await fn();
+      } catch (error) {
+        const status = error?.status ?? error?.code;
+        const isRetryable = [503, 429, 'UNAVAILABLE'].includes(status);
+
+        if (isRetryable && attempt < maxRetries) {
+          const waitMs = delayMs * attempt; // 2s, 4s, 6s
+          console.warn(
+            `AI provider failed (attempt ${attempt}/${maxRetries}), retrying in ${waitMs}ms...`,
+          );
+          await new Promise((resolve) => setTimeout(resolve, waitMs));
+          continue;
+        }
+
+        // Retry tugagan yoki retry qilib bo'lmaydigan xato
+        console.warn(`AI provider failed: ${error.message}, trying next...`);
+        return null;
+      }
+    }
+    return null;
   }
 
   // 1. Gemini — oddiy matn

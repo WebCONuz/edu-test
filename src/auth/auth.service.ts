@@ -53,7 +53,17 @@ export class AuthService {
   }
 
   // Refresh tokenni cookiega yozish
-  private setRefreshCookie(res: Response, refreshToken: string) {
+  private setTokensToCookie(
+    res: Response,
+    accessToken: string,
+    refreshToken: string,
+  ) {
+    res.cookie('access_token', accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: Number(process.env.ACCESS_COOKIE_TIME),
+    });
+
     res.cookie('refresh_token', refreshToken, {
       httpOnly: true, // JS orqali o'qib bo'lmaydi
       secure: process.env.NODE_ENV === 'production',
@@ -61,7 +71,7 @@ export class AuthService {
     });
   }
 
-  // Teacher uchun register
+  // Teacher uchun register qilish
   async register(registerDto: RegisterDto, res: Response) {
     const existing = await this.prisma.user.findUnique({
       where: { email: registerDto.email },
@@ -83,16 +93,13 @@ export class AuthService {
       user.role,
     );
     await this.saveRefreshToken(user.id, refreshToken);
-    this.setRefreshCookie(res, refreshToken);
+    this.setTokensToCookie(res, accessToken, refreshToken);
 
     return {
-      accessToken,
-      user: {
-        id: user.id,
-        fullName: user.fullName,
-        email: user.email,
-        role: user.role,
-      },
+      id: user.id,
+      fullName: user.fullName,
+      email: user.email,
+      role: user.role,
     };
   }
 
@@ -117,16 +124,13 @@ export class AuthService {
       user.role,
     );
     await this.saveRefreshToken(user.id, refreshToken);
-    this.setRefreshCookie(res, refreshToken);
+    this.setTokensToCookie(res, accessToken, refreshToken);
 
     return {
-      accessToken,
-      user: {
-        id: user.id,
-        fullName: user.fullName,
-        email: user.email,
-        role: user.role,
-      },
+      id: user.id,
+      fullName: user.fullName,
+      email: user.email,
+      role: user.role,
     };
   }
 
@@ -139,9 +143,9 @@ export class AuthService {
       user.role,
     );
     await this.saveRefreshToken(user.id, refreshToken);
-    this.setRefreshCookie(res, refreshToken);
+    this.setTokensToCookie(res, accessToken, refreshToken);
 
-    return { accessToken };
+    return { status: 'success', message: 'refresh qilindi' };
   }
 
   async logout(userId: string, res: Response) {
@@ -150,7 +154,17 @@ export class AuthService {
       data: { refreshToken: null },
     });
 
-    res.clearCookie('refresh_token');
+    res.clearCookie('access_token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      path: '/',
+    });
+
+    res.clearCookie('refresh_token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      path: '/',
+    });
     return { message: 'Tizimdan chiqildi' };
   }
 

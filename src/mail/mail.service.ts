@@ -13,7 +13,7 @@ export class MailService {
   });
 
   async sendResetPasswordEmail(email: string, token: string) {
-    const resetLink = `${process.env.DOMEN}/api/auth/reset-password?token=${token}`;
+    const resetLink = `${process.env.DOMEN}/reset-password?token=${token}`;
 
     await this.transporter.sendMail({
       from: `"Edu Test" <${process.env.SMTP_USER}>`,

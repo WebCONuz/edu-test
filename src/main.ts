@@ -11,6 +11,11 @@ async function start() {
   const PORT = process.env.PORT || 3001;
   // app
   const app = await NestFactory.create(AppModule);
+  // CORS
+  app.enableCors({
+    origin: 'http://localhost:3000',
+    credentials: true,
+  });
   // cookie-parser
   app.use(cookieParser());
   // global validation
