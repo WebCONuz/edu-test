@@ -97,9 +97,13 @@ export class SubjectsController {
     description: 'Kategoriya yangilandi',
     type: SubjectEntity,
   })
-  @ApiResponse({ status: 404, description: 'Kategoriya topilmadi' })
-  update(@Param('id') id: string, @Body() dto: UpdateSubjectDto) {
-    return this.subjectsService.update(id, dto);
+  @ApiResponse({ status: 404, description: 'Kategoriya (fan) topilmadi' })
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateSubjectDto,
+    @CurrentUser() currentUser: any,
+  ) {
+    return this.subjectsService.update(id, dto, currentUser);
   }
 
   @Delete(':id')
@@ -112,7 +116,7 @@ export class SubjectsController {
   @ApiParam({ name: 'id', description: 'Subject ID (uuid)' })
   @ApiResponse({ status: 200, description: "Kategoriya holati o'zgartirildi" })
   @ApiResponse({ status: 404, description: 'Kategoriya topilmadi' })
-  toggleActive(@Param('id') id: string) {
-    return this.subjectsService.toggleActive(id);
+  toggleActive(@Param('id') id: string, @CurrentUser() currentUser: any) {
+    return this.subjectsService.toggleActive(id, currentUser);
   }
 }

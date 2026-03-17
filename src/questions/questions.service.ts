@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateQuestionDto } from './dto/create-question.dto';
@@ -101,11 +102,12 @@ export class QuestionsService {
   // ============================================
   // Barcha active savollar
   // ============================================
-  async findAll(subjectId?: string) {
+  async findAll(subjectId?: string, currentUser?: any) {
     return this.prisma.question.findMany({
       where: {
         isActive: true,
         ...(subjectId && { subjectId }),
+        ...(currentUser?.role === 'teacher' && { createdById: currentUser.id }), // teacher bo'lsa faqat o'zinikini filter qiladi
       },
       select: questionSelect,
       orderBy: { createdAt: 'desc' },
@@ -146,8 +148,18 @@ export class QuestionsService {
   // ============================================
   // Savolni yangilash
   // ============================================
-  async update(id: string, dto: UpdateQuestionDto) {
-    await this.findOne(id);
+  async update(id: string, dto: UpdateQuestionDto, currentUser?: any) {
+    const question = await this.findOne(id);
+
+    if (
+      currentUser?.role === 'teacher' &&
+      question.createdBy?.id !== currentUser.id
+    ) {
+      // teacher faqat o'zinikini yangilay oladi
+      throw new ForbiddenException(
+        "Siz faqat o'z savollaringizni yangilay olasiz",
+      );
+    }
 
     const { answerOptions, ...questionData } = dto;
 
@@ -183,8 +195,18 @@ export class QuestionsService {
   // ============================================
   // Savolni inactive qilish
   // ============================================
-  async toggleActive(id: string) {
+  async toggleActive(id: string, currentUser?: any) {
     const question = await this.findOne(id);
+
+    if (
+      currentUser?.role === 'teacher' &&
+      question.createdBy?.id !== currentUser.id
+    ) {
+      // teacher faqat o'zinikini inactive qila oladi
+      throw new ForbiddenException(
+        "Siz faqat o'z savollaringizni inactive qila olasiz",
+      );
+    }
 
     return this.prisma.question.update({
       where: { id },

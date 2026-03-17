@@ -12,7 +12,7 @@ export class RefreshTokenStrategy extends PassportStrategy(
   constructor(private prisma: PrismaService) {
     super({
       jwtFromRequest: ExtractJwt.fromExtractors([
-        (req: Request) => req?.cookies?.refresh_token, // cookiedan oladi
+        (req: Request) => req?.cookies?.refresh_token ?? null, // cookie dan
       ]),
       secretOrKey: process.env.REFRESH_TOKEN_KEY!,
       passReqToCallback: true,

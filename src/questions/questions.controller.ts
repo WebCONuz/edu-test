@@ -33,6 +33,7 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { UserRole } from '../common/types';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ImportQuestionsDto } from './dto/import-questions.dto';
+import { OptionalAuthGuard } from '../common/guards/optional-auth.guard';
 
 @ApiTags('Questions')
 @Controller('questions')
@@ -88,8 +89,12 @@ export class QuestionsController {
     description: "Savollar ro'yxati",
     type: [QuestionEntity],
   })
-  findAll(@Query('subjectId') subjectId?: string) {
-    return this.questionsService.findAll(subjectId);
+  @UseGuards(OptionalAuthGuard) // token bo'lsa user aniqlanadi, bo'lmasa null
+  findAll(
+    @Query('subjectId') subjectId?: string,
+    @CurrentUser() currentUser?: any,
+  ) {
+    return this.questionsService.findAll(subjectId, currentUser);
   }
 
   @Get('by-subject/:subjectId')
@@ -130,8 +135,12 @@ export class QuestionsController {
     type: QuestionEntity,
   })
   @ApiResponse({ status: 404, description: 'Savol topilmadi' })
-  update(@Param('id') id: string, @Body() dto: UpdateQuestionDto) {
-    return this.questionsService.update(id, dto);
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateQuestionDto,
+    @CurrentUser() currentUser: any,
+  ) {
+    return this.questionsService.update(id, dto, currentUser);
   }
 
   // inactive question
@@ -143,8 +152,8 @@ export class QuestionsController {
   @ApiParam({ name: 'id', description: 'Question ID (uuid)' })
   @ApiResponse({ status: 200, description: "Savol holati o'zgartirildi" })
   @ApiResponse({ status: 404, description: 'Savol topilmadi' })
-  toggleActive(@Param('id') id: string) {
-    return this.questionsService.toggleActive(id);
+  toggleActive(@Param('id') id: string, @CurrentUser() currentUser: any) {
+    return this.questionsService.toggleActive(id, currentUser);
   }
 
   // delete question
