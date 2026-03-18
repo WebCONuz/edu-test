@@ -13,12 +13,14 @@ export async function seedSuperAdmin() {
     return;
   }
 
-  const password = await bcrypt.hash('superadmin123', 10);
+  const email = process.env.SUPER_ADMIN_EMAIL!;
+  const fullName = process.env.SUPER_ADMIN_FULL_NAME!;
+  const password = await bcrypt.hash(process.env.SUPER_ADMIN_PASSWORD!, 10);
 
   await prisma.user.create({
     data: {
-      fullName: 'Super Admin',
-      email: 'superadmin@gmail.com',
+      fullName,
+      email,
       password,
       role: 'super_admin',
     },

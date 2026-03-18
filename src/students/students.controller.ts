@@ -6,6 +6,7 @@ import {
   Body,
   Param,
   UseGuards,
+  Patch,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -99,7 +100,18 @@ export class StudentsController {
   @ApiOperation({ summary: 'Studentni inactive qilish (admin va super_admin)' })
   @ApiParam({ name: 'id', description: 'Student ID (uuid)' })
   @ApiResponse({ status: 200, description: "Student holati o'zgartirildi" })
-  toggleActive(@Param('id') id: string) {
-    return this.studentsService.toggleActive(id);
+  inActiveStudent(@Param('id') id: string) {
+    return this.studentsService.inActiveStudent(id);
+  }
+
+  @Patch(':id')
+  @UseGuards(AccessTokenGuard, RolesGuard)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Studentni active qilish (admin va super_admin)' })
+  @ApiParam({ name: 'id', description: 'Student ID (uuid)' })
+  @ApiResponse({ status: 200, description: "Student holati o'zgartirildi" })
+  activeStudent(@Param('id') id: string) {
+    return this.studentsService.activeStudent(id);
   }
 }

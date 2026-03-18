@@ -11,9 +11,23 @@ import { TestSessionsModule } from './test-sessions/test-sessions.module';
 import { StorageModule } from './storage/storage.module';
 import { AiModule } from './ai/ai.module';
 import { FileParserModule } from './file-parser/file-parser.module';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 
 @Module({
   imports: [
+    ThrottlerModule.forRoot([
+      {
+        name: 'short',
+        ttl: 1000, // 1 sekund
+        limit: 10, // 10 ta so'rov
+      },
+      {
+        name: 'long',
+        ttl: 60000, // 1 daqiqa
+        limit: 100, // 100 ta so'rov
+      },
+    ]),
     ConfigModule.forRoot({ envFilePath: '.env', isGlobal: true }),
     PrismaModule,
     UsersModule,
@@ -28,6 +42,11 @@ import { FileParserModule } from './file-parser/file-parser.module';
     FileParserModule,
   ],
   controllers: [],
-  providers: [],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard, // global — hamma endpointga qo'llaniladi
+    },
+  ],
 })
 export class AppModule {}

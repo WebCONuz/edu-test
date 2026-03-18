@@ -34,6 +34,7 @@ import { UserRole } from '../common/types';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ImportQuestionsDto } from './dto/import-questions.dto';
 import { OptionalAuthGuard } from '../common/guards/optional-auth.guard';
+import { QueryQuestionDto } from './dto/query-question.dto';
 
 @ApiTags('Questions')
 @Controller('questions')
@@ -63,38 +64,25 @@ export class QuestionsController {
   @UseGuards(AccessTokenGuard, RolesGuard)
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   @ApiOperation({ summary: 'Barcha savollarni olish' })
-  @ApiQuery({
-    name: 'subjectId',
-    required: false,
-    description: "Fan bo'yicha filter",
-  })
   @ApiResponse({
     status: 200,
     description: "Savollar ro'yxati",
     type: [QuestionEntity],
   })
-  findAllFull(@Query('subjectId') subjectId?: string) {
-    return this.questionsService.findAllFull(subjectId);
+  findAllFull(@Query() query: QueryQuestionDto) {
+    return this.questionsService.findAllFull(query);
   }
 
   @Get()
-  @ApiOperation({ summary: 'Barcha savollarni aktive olish' })
-  @ApiQuery({
-    name: 'subjectId',
-    required: false,
-    description: "Fan bo'yicha filter",
-  })
+  @UseGuards(OptionalAuthGuard)
+  @ApiOperation({ summary: 'Barcha aktive savollarni olish' })
   @ApiResponse({
     status: 200,
     description: "Savollar ro'yxati",
     type: [QuestionEntity],
   })
-  @UseGuards(OptionalAuthGuard) // token bo'lsa user aniqlanadi, bo'lmasa null
-  findAll(
-    @Query('subjectId') subjectId?: string,
-    @CurrentUser() currentUser?: any,
-  ) {
-    return this.questionsService.findAll(subjectId, currentUser);
+  findAll(@Query() query: QueryQuestionDto, @CurrentUser() currentUser?: any) {
+    return this.questionsService.findAll(query, currentUser);
   }
 
   @Get('by-subject/:subjectId')

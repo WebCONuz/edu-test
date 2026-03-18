@@ -5,17 +5,13 @@ import { BadRequestException, ValidationPipe } from '@nestjs/common';
 import * as cookieParser from 'cookie-parser';
 import * as basicAuth from 'express-basic-auth';
 import { seedSuperAdmin } from './prisma/seed';
+import helmet from 'helmet';
 
 async function start() {
   // port
   const PORT = process.env.PORT || 3001;
   // app
   const app = await NestFactory.create(AppModule);
-  // CORS
-  app.enableCors({
-    origin: 'http://localhost:3000',
-    credentials: true,
-  });
   // cookie-parser
   app.use(cookieParser());
   // global validation
@@ -28,15 +24,15 @@ async function start() {
   );
   // global prefix
   app.setGlobalPrefix('/api');
+  // helmet
+  app.use(helmet());
   // cors
   app.enableCors({
     origin: (origin, callback) => {
       const allowedOrigins = [
         'http://localhost:5173',
         'http://localhost:3000',
-        'https://shaxriyorbek.uz',
-        'https://api.shaxriyorbek.uz',
-        'https://furnishing.vercel.app',
+        process.env.FRONTEND_URL,
       ];
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);

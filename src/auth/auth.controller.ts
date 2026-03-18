@@ -17,6 +17,7 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordGuard } from '../common/guards/reset-password.guard';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ResetPasswordByTokenDto } from './dto/reset-password-by-token.dto';
+import { Throttle } from '@nestjs/throttler';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -41,6 +42,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Tizimga kirish' })
   @ApiResponse({ status: 200, description: 'Muvaffaqiyatli kirish' })
   @ApiResponse({ status: 401, description: "Email yoki parol noto'g'ri" })
+  @Throttle({ short: { ttl: 60000, limit: 5 } }) // 1 daqiqada 5 ta urinish
   login(@Body() loginDto: LoginDto, @Res({ passthrough: true }) res: Response) {
     return this.authService.login(loginDto, res);
   }
@@ -73,6 +75,7 @@ export class AuthController {
     summary: 'Parolni tiklash uchun email yuborish (faqat teacher)',
   })
   @ApiResponse({ status: 200, description: 'Email yuborildi' })
+  @Throttle({ short: { ttl: 60000, limit: 3 } }) // 1 daqiqada 3 ta urinish
   forgotPassword(@Body() dto: ForgotPasswordDto) {
     return this.authService.forgotPassword(dto.email);
   }

@@ -11,6 +11,7 @@ import { AiService } from '../ai/ai.service';
 import { FileParserService } from '../file-parser/file-parser.service';
 import { buildImportPrompt } from './prompts/import.prompt';
 import { StorageService } from '../storage/storage.service';
+import { QueryQuestionDto } from './dto/query-question.dto';
 
 const questionSelect = {
   id: true,
@@ -87,31 +88,81 @@ export class QuestionsService {
   }
 
   // ============================================
-  // Barcha savollar
+  // Barcha savollar (admin uchun, inactive ham)
   // ============================================
-  async findAllFull(subjectId?: string) {
-    return this.prisma.question.findMany({
-      where: {
-        ...(subjectId && { subjectId }), // subjectId berilsa filter qiladi
+  async findAllFull(query: QueryQuestionDto) {
+    const { page = 1, limit = 30, subjectId, search } = query;
+    const skip = (page - 1) * limit;
+
+    const where = {
+      ...(subjectId && { subjectId }),
+      ...(search && {
+        questionText: { contains: search, mode: 'insensitive' as const },
+      }),
+    };
+
+    const [data, total] = await Promise.all([
+      this.prisma.question.findMany({
+        where,
+        select: questionSelect,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.question.count({ where }),
+    ]);
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+        hasNext: page < Math.ceil(total / limit),
+        hasPrev: page > 1,
       },
-      select: questionSelect,
-      orderBy: { createdAt: 'desc' },
-    });
+    };
   }
 
   // ============================================
   // Barcha active savollar
   // ============================================
-  async findAll(subjectId?: string, currentUser?: any) {
-    return this.prisma.question.findMany({
-      where: {
-        isActive: true,
-        ...(subjectId && { subjectId }),
-        ...(currentUser?.role === 'teacher' && { createdById: currentUser.id }), // teacher bo'lsa faqat o'zinikini filter qiladi
+  async findAll(query: QueryQuestionDto, currentUser?: any) {
+    const { page = 1, limit = 30, subjectId, search } = query;
+    const skip = (page - 1) * limit;
+
+    const where = {
+      isActive: true,
+      ...(subjectId && { subjectId }),
+      ...(search && {
+        questionText: { contains: search, mode: 'insensitive' as const },
+      }),
+      ...(currentUser?.role === 'teacher' && { createdById: currentUser.id }),
+    };
+
+    const [data, total] = await Promise.all([
+      this.prisma.question.findMany({
+        where,
+        select: questionSelect,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.question.count({ where }),
+    ]);
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+        hasNext: page < Math.ceil(total / limit),
+        hasPrev: page > 1,
       },
-      select: questionSelect,
-      orderBy: { createdAt: 'desc' },
-    });
+    };
   }
 
   // ============================================

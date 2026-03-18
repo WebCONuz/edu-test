@@ -135,7 +135,7 @@ export class StudentsService {
   }
 
   // Inactive qilish — faqat admin va super_admin
-  async toggleActive(id: string) {
+  async inActiveStudent(id: string) {
     const student = await this.prisma.student.findUnique({
       where: { id },
       select: studentSelect,
@@ -144,7 +144,22 @@ export class StudentsService {
 
     return this.prisma.student.update({
       where: { id },
-      data: { isActive: !student.isActive },
+      data: { isActive: false },
+      select: studentSelect,
+    });
+  }
+
+  // Inactive qilish — faqat admin va super_admin
+  async activeStudent(id: string) {
+    const student = await this.prisma.student.findUnique({
+      where: { id },
+      select: studentSelect,
+    });
+    if (!student) throw new NotFoundException("O'quvchi topilmadi");
+
+    return this.prisma.student.update({
+      where: { id },
+      data: { isActive: true },
       select: studentSelect,
     });
   }
